@@ -62,6 +62,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL: string;
+  profilePic?: string;
   phoneNumber?: string;
   role: 'admin' | 'user';
   totalSpent?: number;

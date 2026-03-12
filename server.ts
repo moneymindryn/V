@@ -1,16 +1,13 @@
-import express from "express";
-import { createServer as createViteServer } from "vite";
-import path from "path";
+import express from 'express';
+import { createServer as createViteServer } from 'vite';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { doc, deleteDoc, getFirestore } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, deleteDoc } from 'firebase/firestore';
 import fs from 'fs';
 
-// Load Firebase config
-const firebaseConfig = JSON.parse(fs.readFileSync('./src/firebase-applet-config.json', 'utf-8'));
-
-// Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
@@ -18,34 +15,54 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Load Firebase config for the server
+  const firebaseConfigPath = path.join(__dirname, 'src', 'firebase-applet-config.json');
+  let db: any;
+
+  if (fs.existsSync(firebaseConfigPath)) {
+    const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
+    const firebaseApp = initializeApp(firebaseConfig);
+    db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+  }
+
   // API Routes
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete('/api/orders/:id', async (req, res) => {
     const { id } = req.params;
+    
+    if (!db) {
+      return res.status(500).json({ error: 'Firebase not configured on server' });
+    }
+
     try {
-      await deleteDoc(doc(db, 'users', id));
-      res.json({ success: true, message: "User deleted successfully" });
+      await deleteDoc(doc(db, 'orders', id));
+      res.json({ message: 'Order deleted successfully', id });
     } catch (error) {
-      console.error("Error deleting user:", error);
-      res.status(500).json({ success: false, error: "Failed to delete user" });
+      console.error('Error deleting order:', error);
+      res.status(500).json({ error: 'Failed to delete order' });
     }
   });
 
-  app.delete("/api/orders/:id", async (req, res) => {
+  app.delete('/api/users/:id', async (req, res) => {
     const { id } = req.params;
+    
+    if (!db) {
+      return res.status(500).json({ error: 'Firebase not configured on server' });
+    }
+
     try {
-      await deleteDoc(doc(db, 'orders', id));
-      res.json({ success: true, message: "Order deleted successfully" });
+      await deleteDoc(doc(db, 'users', id));
+      res.json({ message: 'User deleted successfully', id });
     } catch (error) {
-      console.error("Error deleting order:", error);
-      res.status(500).json({ success: false, error: "Failed to delete order" });
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: 'Failed to delete user' });
     }
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
@@ -56,7 +73,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

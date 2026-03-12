@@ -19,11 +19,12 @@ import { useState } from 'react';
 import { cn } from '../utils/utils';
 
 import { useAuth } from '../context/AuthContext';
+import UserAvatar from './UserAvatar';
 
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -109,9 +110,12 @@ const AdminLayout: React.FC = () => {
               <p className="text-sm font-bold text-white">Admin</p>
               <p className="text-xs text-slate-500">{user?.email || 'No Email'}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-              <User className="w-5 h-5 text-indigo-400" />
-            </div>
+            <UserAvatar 
+              src={profile?.profilePic || profile?.photoURL} 
+              name={profile?.displayName} 
+              size="md" 
+              className="border-slate-700"
+            />
           </div>
         </header>
 

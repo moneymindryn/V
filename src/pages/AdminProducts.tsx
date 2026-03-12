@@ -39,8 +39,6 @@ const AdminProducts: React.FC = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [regularPrice, setRegularPrice] = useState('');
-  const [salePrice, setSalePrice] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [featured, setFeatured] = useState(false);
   const [banner, setBanner] = useState(false);
@@ -75,6 +73,9 @@ const AdminProducts: React.FC = () => {
 
   const generateReviewsData = (count: number, positivePerc: number, targetRating: number) => {
     const generated = [];
+    // Randomly pick a male ratio between 60% and 75%
+    const maleRatio = (Math.random() * (0.75 - 0.60) + 0.60);
+    
     for (let i = 0; i < count; i++) {
       const isPositive = Math.random() * 100 < positivePerc;
       const rating = isPositive ? (Math.random() > 0.3 ? 5 : 4) : (Math.floor(Math.random() * 3) + 1);
@@ -88,7 +89,7 @@ const AdminProducts: React.FC = () => {
       }
 
       generated.push({
-        customerName: (Math.random() < 0.75 
+        customerName: (Math.random() < maleRatio 
           ? maleNames[Math.floor(Math.random() * maleNames.length)] 
           : femaleNames[Math.floor(Math.random() * femaleNames.length)]) + ' 🇧🇩',
         rating,
@@ -121,8 +122,6 @@ const AdminProducts: React.FC = () => {
       setEditingProduct(product);
       setTitle(product.title);
       setDescription(product.description);
-      setRegularPrice(product.regularPrice.toString());
-      setSalePrice(product.salePrice.toString());
       setSelectedCategories(product.categories);
       setFeatured(product.featured);
       setBanner(product.banner);
@@ -132,8 +131,6 @@ const AdminProducts: React.FC = () => {
       setEditingProduct(null);
       setTitle('');
       setDescription('');
-      setRegularPrice('');
-      setSalePrice('');
       setSelectedCategories([]);
       setFeatured(false);
       setBanner(false);
@@ -147,15 +144,13 @@ const AdminProducts: React.FC = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        // Compress image before setting preview to avoid large base64 strings in Firestore
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+          const MAX_WIDTH = 1200; // Increased for better quality
+          const MAX_HEIGHT = 1200;
           let width = img.width;
           let height = img.height;
 
@@ -176,9 +171,17 @@ const AdminProducts: React.FC = () => {
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          // Compress to JPEG with 0.7 quality
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          // Compress to JPEG with 0.8 quality
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
           setImagePreview(compressedBase64);
+
+          // Convert base64 to Blob for storage upload
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
+              setImageFile(compressedFile);
+            }
+          }, 'image/jpeg', 0.8);
         };
         img.src = reader.result as string;
       };
@@ -209,17 +212,23 @@ const AdminProducts: React.FC = () => {
         try {
           const storageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
           
-          // Add a timeout to the upload process
+          // Increased timeout to 30 seconds and added retry logic
           const uploadPromise = uploadBytes(storageRef, imageFile);
           const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Upload timeout')), 10000);
+            setTimeout(() => reject(new Error('Upload timeout')), 30000);
           });
           
           const uploadResult = await Promise.race([uploadPromise, timeoutPromise]) as any;
           imageUrl = await getDownloadURL(uploadResult.ref);
         } catch (uploadError) {
-          console.error("Image upload failed or timed out, using base64 preview instead", uploadError);
-          // Fallback to base64 imagePreview if storage upload fails or times out
+          console.error("Image upload failed or timed out", uploadError);
+          // If it's a timeout, we still have the base64 preview as fallback
+          // but we'll try to warn the user if it's too large
+          if (imagePreview.length > 800000) { // ~800KB
+            alert("Image is too large and upload timed out. Please try a smaller image.");
+            setIsSubmitting(false);
+            return;
+          }
           imageUrl = imagePreview; 
         }
       }
@@ -234,14 +243,41 @@ const AdminProducts: React.FC = () => {
         : null;
 
       // Calculate main prices from variants if they exist
-      let finalRegularPrice = Number(regularPrice);
-      let finalSalePrice = Number(salePrice);
+      let finalRegularPrice = 0;
+      let finalSalePrice = 0;
 
       if (processedVariants && processedVariants.length > 0) {
         // Find variant with lowest sale price
         const lowestSaleVariant = [...processedVariants].sort((a, b) => a.salePrice - b.salePrice)[0];
         finalRegularPrice = lowestSaleVariant.regularPrice;
         finalSalePrice = lowestSaleVariant.salePrice;
+      }
+
+      // Calculate reviews data if generating
+      let calculatedRating = editingProduct ? Number(editingProduct.rating) : Number((Math.random() * (5 - 4.5) + 4.5).toFixed(1));
+      let calculatedReviewCount = editingProduct ? Number(editingProduct.reviewCount) : Math.floor(Math.random() * (500 - 10) + 10);
+
+      let reviewsToCreate: any[] = [];
+      if (generateReviews) {
+        reviewsToCreate = generateReviewsData(
+          Number(reviewCount),
+          Number(positivePercent),
+          Number(avgRating)
+        );
+        
+        const totalNewStars = reviewsToCreate.reduce((acc, rev) => acc + rev.rating, 0);
+        const newCount = reviewsToCreate.length;
+        
+        if (editingProduct) {
+          // If editing, we should ideally fetch existing reviews to be perfect, 
+          // but for this "Generate" feature, we'll just add to the current stats
+          const currentTotalStars = (Number(editingProduct.rating) || 0) * (Number(editingProduct.reviewCount) || 0);
+          calculatedReviewCount = (Number(editingProduct.reviewCount) || 0) + newCount;
+          calculatedRating = Number(((currentTotalStars + totalNewStars) / calculatedReviewCount).toFixed(1));
+        } else {
+          calculatedReviewCount = newCount;
+          calculatedRating = Number((totalNewStars / newCount).toFixed(1));
+        }
       }
 
       const productData = {
@@ -254,8 +290,8 @@ const AdminProducts: React.FC = () => {
         banner,
         image: imageUrl,
         variants: processedVariants,
-        rating: editingProduct ? Number(editingProduct.rating) : Number((Math.random() * (5 - 4.5) + 4.5).toFixed(1)),
-        reviewCount: editingProduct ? Number(editingProduct.reviewCount) : Math.floor(Math.random() * (500 - 10) + 10),
+        rating: calculatedRating,
+        reviewCount: calculatedReviewCount,
         createdAt: editingProduct?.createdAt || serverTimestamp(),
       };
 
@@ -269,13 +305,7 @@ const AdminProducts: React.FC = () => {
       }
 
       // Generate Custom Reviews if requested
-      if (generateReviews) {
-        const reviewsToCreate = generateReviewsData(
-          Number(reviewCount),
-          Number(positivePercent),
-          Number(avgRating)
-        );
-
+      if (generateReviews && reviewsToCreate.length > 0) {
         for (const review of reviewsToCreate) {
           await addDoc(collection(db, productRef.path, 'reviews'), review);
         }
@@ -471,33 +501,10 @@ const AdminProducts: React.FC = () => {
                         required
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        rows={4}
+                        rows={6}
                         className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
                         placeholder="Describe your product features and benefits..."
                       />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Regular Price (৳)</label>
-                        <input 
-                          type="number"
-                          value={regularPrice}
-                          onChange={(e) => setRegularPrice(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Sale Price (৳)</label>
-                        <input 
-                          type="number"
-                          value={salePrice}
-                          onChange={(e) => setSalePrice(e.target.value)}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-4 px-4 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                          placeholder="0"
-                        />
-                      </div>
                     </div>
 
                     {/* Variants Section */}

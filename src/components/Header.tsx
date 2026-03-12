@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/utils';
 
+import UserAvatar from './UserAvatar';
+
 interface HeaderProps {
   onCartOpen: () => void;
 }
@@ -31,8 +33,7 @@ const Header: React.FC<HeaderProps> = ({ onCartOpen }) => {
     { name: 'Home', path: '/' },
     { name: 'Products', path: '/products' },
     { name: 'Contact', path: '/contact' },
-    { name: 'Page', path: 'https://facebook.com/piximarts', external: true },
-    ...(isAdmin ? [{ name: 'Admin', path: '/admin-panel/dashboard' }] : []),
+    { name: 'FB Page', path: 'https://facebook.com/piximarts', external: true },
   ];
 
   return (
@@ -93,11 +94,11 @@ const Header: React.FC<HeaderProps> = ({ onCartOpen }) => {
             )}
             title={user ? "Profile" : "Login"}
           >
-            {profile?.photoURL ? (
-              <img src={profile.photoURL} alt="Profile" className="w-6 h-6 rounded-full border border-gray-200" />
-            ) : (
-              <UserIcon className="w-6 h-6" />
-            )}
+            <UserAvatar 
+              src={profile?.profilePic || profile?.photoURL} 
+              name={profile?.displayName} 
+              size="sm" 
+            />
           </Link>
 
           <button

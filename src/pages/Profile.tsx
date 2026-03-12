@@ -12,6 +12,8 @@ import { db, storage } from '../firebase';
 import { Order, UserProfile } from '../types';
 import { formatPrice, cn, formatDate } from '../utils/utils';
 
+import UserAvatar from '../components/UserAvatar';
+
 const Profile: React.FC = () => {
   const { user, profile, logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -106,21 +108,74 @@ const Profile: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    console.log("Uploading image for:", user.uid, file.name);
+    console.log("Processing image for upload:", user.uid, file.name);
     setUploading(true);
+    
     try {
+      // Create a promise to handle the compression
+      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const MAX_HEIGHT = 800;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            canvas.toBlob((blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Canvas to Blob conversion failed'));
+            }, 'image/jpeg', 0.8);
+          };
+          img.onerror = () => reject(new Error('Image loading failed'));
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error('File reading failed'));
+        reader.readAsDataURL(file);
+      });
+
       const storageRef = ref(storage, `profiles/${user.uid}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+      
+      // Add a timeout to the upload process
+      const uploadPromise = uploadBytes(storageRef, compressedBlob);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Upload timeout')), 30000);
+      });
+
+      console.log("Uploading compressed image...");
+      const uploadResult = await Promise.race([uploadPromise, timeoutPromise]) as any;
+      const downloadURL = await getDownloadURL(uploadResult.ref);
       console.log("Image uploaded, URL:", downloadURL);
       
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
-        photoURL: downloadURL
+        profilePic: downloadURL,
+        photoURL: downloadURL // Keep photoURL in sync for compatibility
       });
       console.log("Profile photo updated in Firestore");
     } catch (error) {
       console.error("Error uploading image:", error);
+      alert(error instanceof Error && error.message === 'Upload timeout' 
+        ? "Upload timed out. Please check your internet connection and try again." 
+        : "Failed to upload image. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -189,13 +244,12 @@ const Profile: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-violet-700 opacity-50" />
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
             <div className="relative group">
-              {profile.photoURL ? (
-                <img src={profile.photoURL} alt={profile.displayName} className="w-32 h-32 rounded-[2rem] border-4 border-white/20 shadow-xl object-cover" />
-              ) : (
-                <div className="w-32 h-32 bg-white/20 rounded-[2rem] flex items-center justify-center border-4 border-white/20">
-                  <UserIcon className="w-16 h-16" />
-                </div>
-              )}
+              <UserAvatar 
+                src={profile.profilePic || profile.photoURL} 
+                name={profile.displayName} 
+                size="xl" 
+                className="border-4 border-white/20 shadow-xl"
+              />
               <label className="absolute -bottom-2 -right-2 bg-white text-indigo-600 p-2.5 rounded-2xl shadow-lg cursor-pointer hover:scale-110 transition-transform">
                 <Camera className="w-5 h-5" />
                 <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />

@@ -15,7 +15,22 @@ import {
   XCircle
 } from 'lucide-react';
 import { formatPrice } from '../utils/utils';
-import { motion } from 'framer-motion';
+import { motion, useSpring, useTransform, animate } from 'framer-motion';
+
+const CountUp: React.FC<{ value: number; duration?: number }> = ({ value, duration = 2 }) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const controls = animate(0, value, {
+      duration: duration,
+      onUpdate: (latest) => setCount(Math.floor(latest)),
+      ease: "easeOut"
+    });
+    return () => controls.stop();
+  }, [value, duration]);
+
+  return <>{formatPrice(count)}</>;
+};
 
 const AdminDashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -65,7 +80,8 @@ const AdminDashboard: React.FC = () => {
   const orderStats = [
     { 
       name: 'Total Earnings', 
-      value: formatPrice(totalRevenue), 
+      value: totalRevenue, 
+      isCurrency: true,
       icon: Wallet, 
       color: 'text-emerald-400', 
       bg: 'bg-emerald-500/10',
@@ -290,7 +306,13 @@ const AdminDashboard: React.FC = () => {
                 )}
               </div>
               <p className="text-slate-400 text-sm font-medium mb-1">{stat.name}</p>
-              <h3 className="text-2xl font-black text-white">{stat.value}</h3>
+              <h3 className="text-2xl font-black text-white">
+                {stat.name === 'Total Earnings' ? (
+                  <CountUp value={stat.value as number} />
+                ) : (
+                  stat.value
+                )}
+              </h3>
               {stat.subValue && (
                 <p className="text-slate-500 text-[10px] mt-1 font-medium uppercase tracking-wider">{stat.subValue}</p>
               )}

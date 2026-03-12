@@ -81,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: email,
       displayName: name,
       photoURL: '',
+      profilePic: '',
       role: isAdminEmail ? 'admin' : 'user',
       createdAt: serverTimestamp() as any,
       totalSpent: 0

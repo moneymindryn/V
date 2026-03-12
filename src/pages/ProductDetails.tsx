@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, onSnapshot, collection, query, where, limit, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, limit, addDoc, serverTimestamp, orderBy, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, Review } from '../types';
 import { useCart } from '../context/CartContext';
@@ -135,12 +135,25 @@ const ProductDetails: React.FC = () => {
 
     setIsSubmittingReview(true);
     try {
+      // Add the new review
       await addDoc(collection(db, 'products', id, 'reviews'), {
         customerName: reviewName,
         rating: reviewRating,
         reviewText: reviewText,
         createdAt: serverTimestamp()
       });
+
+      // Update product document with new rating and count for denormalization
+      // This helps ProductCard and other list views show correct data
+      const newTotalReviews = reviews.length + 1;
+      const newTotalStars = reviews.reduce((acc, rev) => acc + rev.rating, 0) + reviewRating;
+      const newAverageRating = Number((newTotalStars / newTotalReviews).toFixed(1));
+
+      await updateDoc(doc(db, 'products', id), {
+        rating: newAverageRating,
+        reviewCount: newTotalReviews
+      });
+
       setReviewName('');
       setReviewText('');
       setReviewRating(5);
@@ -161,6 +174,11 @@ const ProductDetails: React.FC = () => {
 
   const currentRegularPrice = selectedVariant ? selectedVariant.regularPrice : product?.regularPrice;
   const currentSalePrice = selectedVariant ? selectedVariant.salePrice : product?.salePrice;
+
+  const totalReviews = reviews.length;
+  const averageRating = totalReviews > 0 
+    ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews).toFixed(1)
+    : "0";
 
   if (!product) return null;
 
@@ -251,8 +269,23 @@ const ProductDetails: React.FC = () => {
 
             <div className="flex items-center gap-6 mb-8">
               <div className="flex items-center gap-1 text-amber-400">
-                <Star className="w-5 h-5 fill-current" />
-                <span className="text-gray-900 font-black">{product.rating}</span>
+                <div className="flex gap-0.5 mr-1">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const avg = parseFloat(averageRating);
+                    return (
+                      <Star 
+                        key={star} 
+                        className={cn(
+                          "w-4 h-4",
+                          star <= Math.round(avg) ? "text-amber-400 fill-current" : "text-gray-200"
+                        )} 
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-gray-900 font-black">
+                  {totalReviews > 0 ? averageRating : "No ratings yet"}
+                </span>
               </div>
               <div className="h-4 w-px bg-gray-200"></div>
               <button 
@@ -262,7 +295,7 @@ const ProductDetails: React.FC = () => {
                 }}
                 className="text-gray-500 font-bold hover:text-indigo-600 transition-colors"
               >
-                {reviews.length > 0 ? reviews.length : product.reviewCount} Reviews
+                {totalReviews} {totalReviews === 1 ? 'Review' : 'Reviews'}
               </button>
               <div className="h-4 w-px bg-gray-200"></div>
               <span className="text-emerald-500 font-bold flex items-center gap-1">
@@ -388,7 +421,7 @@ const ProductDetails: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="space-y-8"
                   >
-                    <p className="text-gray-600 text-lg leading-relaxed font-medium">
+                    <p className="text-gray-600 text-lg leading-relaxed font-medium whitespace-pre-wrap">
                       {product.description}
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

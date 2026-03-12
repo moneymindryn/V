@@ -63,7 +63,7 @@ const Footer: React.FC = () => {
             <li><Link to="/" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors">Home</Link></li>
             <li><Link to="/products" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors">Products</Link></li>
             <li><Link to="/contact" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors">Contact Us</Link></li>
-            <li><a href="https://facebook.com/piximarts" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors">Page</a></li>
+            <li><a href="https://facebook.com/piximarts" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-indigo-600 text-sm transition-colors">FB Page</a></li>
           </ul>
         </div>
 

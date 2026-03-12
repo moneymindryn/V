@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, increment, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Order } from '../types';
 import { formatPrice, formatDate } from '../utils/utils';
@@ -46,13 +46,16 @@ const AdminOrders: React.FC = () => {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'DELETE',
       });
-      const data = await response.json();
-      
-      if (data.success) {
-        // Local state will be updated automatically by onSnapshot
-      } else {
-        throw new Error(data.error || "Failed to delete order");
+
+      if (!response.ok) {
+        throw new Error('Failed to delete order via API');
       }
+
+      const data = await response.json();
+      console.log(data.message);
+      
+      // The state will be updated automatically by the onSnapshot listener
+      // but we can also manually filter if we weren't using real-time listeners.
     } catch (error) {
       console.error("Error deleting order:", error);
       alert("Failed to delete order.");

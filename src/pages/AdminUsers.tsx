@@ -5,6 +5,7 @@ import { UserProfile } from '../types';
 import { motion } from 'framer-motion';
 import { Users, Shield, User as UserIcon, Mail, Calendar, Wallet, MessageSquare, Trash2 } from 'lucide-react';
 import { formatPrice, formatDate } from '../utils/utils';
+import UserAvatar from '../components/UserAvatar';
 
 const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -45,22 +46,31 @@ const AdminUsers: React.FC = () => {
   };
 
   const removeUser = async (userId: string) => {
+    if (!userId) {
+      console.error("User ID is undefined");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to permanently remove this user? This action cannot be undone.")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      const data = await response.json();
-      
-      if (data.success) {
-        // Local state will be updated automatically by onSnapshot
+
+      if (response.ok) {
+        // Update local state immediately
+        setUsers(prevUsers => prevUsers.filter(u => u.uid !== userId));
       } else {
-        throw new Error(data.error || "Failed to remove user");
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to remove user');
       }
     } catch (error) {
       console.error("Error removing user:", error);
-      alert("Failed to remove user.");
+      alert(error instanceof Error ? error.message : "Failed to remove user.");
     }
   };
 
@@ -179,13 +189,12 @@ const UserCard: React.FC<UserCardProps> = ({ user, onRevoke, onMessage, onRemove
       className="glass-dark p-6 rounded-[2rem] border border-slate-800 relative overflow-hidden group"
     >
       <div className="flex items-start gap-4 mb-6 relative z-10">
-        {user.photoURL ? (
-          <img src={user.photoURL} alt="" className="w-16 h-16 rounded-2xl border-2 border-slate-700 shadow-xl" />
-        ) : (
-          <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center border-2 border-slate-700">
-            <UserIcon className="w-8 h-8 text-slate-500" />
-          </div>
-        )}
+        <UserAvatar 
+          src={user.profilePic || user.photoURL} 
+          name={user.displayName} 
+          size="lg" 
+          className="rounded-2xl border-2 border-slate-700 shadow-xl"
+        />
         <div className="min-w-0">
           <h3 className="text-lg font-bold text-white truncate">{user.displayName}</h3>
           <div className="flex items-center gap-2 text-slate-500 text-xs font-medium mt-1">
