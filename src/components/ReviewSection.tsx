@@ -27,7 +27,7 @@ const ReviewSection: React.FC = () => {
       <div className="text-center mb-16">
         <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">What Our Customers Say</h2>
         <p className="text-gray-500 max-w-2xl mx-auto font-medium">
-          Trusted by thousands of happy customers worldwide. Here's why they love Pixi Mart.
+          Trusted by thousands of happy customers worldwide. Here's why they love Pixi Marts.
         </p>
       </div>
 

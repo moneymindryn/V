@@ -393,7 +393,7 @@ const OrderDetails: React.FC = () => {
         {/* Footer Section */}
         <div className="p-8 bg-gray-50 border-t border-gray-100 text-center">
           <p className="text-gray-400 text-sm font-bold">
-            Thank you for shopping with Pixi Mart! If you have any questions, please contact our support.
+            Thank you for shopping with Pixi Marts! If you have any questions, please contact our support.
           </p>
         </div>
       </motion.div>

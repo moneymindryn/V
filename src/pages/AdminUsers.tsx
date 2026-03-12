@@ -14,7 +14,7 @@ const AdminUsers: React.FC = () => {
   useEffect(() => {
     const q = query(collection(db, 'users'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ ...doc.data() } as UserProfile)));
+      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
       setLoading(false);
     });
     return unsubscribe;
@@ -48,7 +48,16 @@ const AdminUsers: React.FC = () => {
     if (!window.confirm("Are you sure you want to permanently remove this user? This action cannot be undone.")) return;
     
     try {
-      await deleteDoc(doc(db, 'users', userId));
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        // Local state will be updated automatically by onSnapshot
+      } else {
+        throw new Error(data.error || "Failed to remove user");
+      }
     } catch (error) {
       console.error("Error removing user:", error);
       alert("Failed to remove user.");

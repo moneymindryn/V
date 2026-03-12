@@ -18,9 +18,12 @@ import { signOut } from 'firebase/auth';
 import { useState } from 'react';
 import { cn } from '../utils/utils';
 
+import { useAuth } from '../context/AuthContext';
+
 const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -55,7 +58,7 @@ const AdminLayout: React.FC = () => {
                 <Store className="w-6 h-6 text-white" />
               </div>
               <span className="text-2xl font-black bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-                Pixi Mart
+                Pixi Marts
               </span>
             </Link>
             <button className="lg:hidden" onClick={() => setIsSidebarOpen(false)}>
@@ -104,7 +107,7 @@ const AdminLayout: React.FC = () => {
           <div className="flex items-center gap-4 ml-auto">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-bold text-white">Admin</p>
-              <p className="text-xs text-slate-500">admin gmail</p>
+              <p className="text-xs text-slate-500">{user?.email || 'No Email'}</p>
             </div>
             <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
               <User className="w-5 h-5 text-indigo-400" />

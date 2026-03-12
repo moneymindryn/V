@@ -107,7 +107,7 @@ const demoReviews = [
 
 const demoFAQs = [
   { question: 'How long does delivery take?', answer: 'Most digital products are delivered within 5 to 30 minutes after payment confirmation.' },
-  { question: 'Is it safe to buy from Pixi Mart?', answer: 'Yes, we are a trusted platform with thousands of satisfied customers. We provide full warranty for our products.' },
+  { question: 'Is it safe to buy from Pixi Marts?', answer: 'Yes, we are a trusted platform with thousands of satisfied customers. We provide full warranty for our products.' },
   { question: 'What payment methods do you accept?', answer: 'We currently accept bKash, Nagad, and Rocket for all transactions.' },
 ];
 

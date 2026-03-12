@@ -17,8 +17,8 @@ export default defineConfig(({mode}) => {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
         },
         manifest: {
-          name: 'Pixi Mart',
-          short_name: 'Pixi Mart',
+          name: 'Pixi Marts',
+          short_name: 'Pixi Marts',
           description: 'Your premium digital marketplace',
           theme_color: '#4f46e5',
           background_color: '#ffffff',

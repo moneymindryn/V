@@ -51,7 +51,7 @@ const AdminLogin: React.FC = () => {
               <LogIn className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-black text-white mb-2">Admin Login</h1>
-            <p className="text-slate-400 text-sm">Access the Pixi Mart dashboard</p>
+            <p className="text-slate-400 text-sm">Access the Pixi Marts dashboard</p>
           </div>
 
           {error && (

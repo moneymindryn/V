@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, orderBy, addDoc, setDoc, doc, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, Category } from '../types';
+import { Product, Category, Order } from '../types';
 import { 
   Package, 
   Layers, 
   Star, 
   Image as ImageIcon,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  Wallet,
+  ShoppingBag,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { formatPrice } from '../utils/utils';
 import { motion } from 'framer-motion';
@@ -16,6 +20,7 @@ import { motion } from 'framer-motion';
 const AdminDashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +28,6 @@ const AdminDashboard: React.FC = () => {
     const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
       const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(prods);
-      setLoading(false);
     });
 
     const unsubscribeCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
@@ -31,11 +35,78 @@ const AdminDashboard: React.FC = () => {
       setCategories(cats);
     });
 
+    const qOrders = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
+      const ords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      setOrders(ords);
+      setLoading(false);
+    });
+
     return () => {
       unsubscribeProducts();
       unsubscribeCategories();
+      unsubscribeOrders();
     };
   }, []);
+
+  const totalRevenue = orders
+    .filter(o => o.status === 'Complete')
+    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+  const pendingOrders = orders.filter(o => o.status === 'Pending');
+  const completedOrders = orders.filter(o => o.status === 'Complete');
+  const rejectedOrders = orders.filter(o => o.status === 'Reject');
+
+  const getPercentage = (count: number) => {
+    if (orders.length === 0) return '0%';
+    return `${Math.round((count / orders.length) * 100)}%`;
+  };
+
+  const orderStats = [
+    { 
+      name: 'Total Earnings', 
+      value: formatPrice(totalRevenue), 
+      icon: Wallet, 
+      color: 'text-emerald-400', 
+      bg: 'bg-emerald-500/10',
+      subValue: 'From completed orders'
+    },
+    { 
+      name: 'Total Orders', 
+      value: orders.length, 
+      icon: ShoppingBag, 
+      color: 'text-blue-400', 
+      bg: 'bg-blue-500/10',
+      subValue: 'All time orders'
+    },
+    { 
+      name: 'Pending Orders', 
+      value: pendingOrders.length, 
+      icon: Clock, 
+      color: 'text-amber-400', 
+      bg: 'bg-amber-500/10',
+      percentage: getPercentage(pendingOrders.length),
+      percentageColor: 'bg-amber-500/20 text-amber-400'
+    },
+    { 
+      name: 'Completed Orders', 
+      value: completedOrders.length, 
+      icon: CheckCircle, 
+      color: 'text-emerald-400', 
+      bg: 'bg-emerald-500/10',
+      percentage: getPercentage(completedOrders.length),
+      percentageColor: 'bg-emerald-500/20 text-emerald-400'
+    },
+    { 
+      name: 'Rejected Orders', 
+      value: rejectedOrders.length, 
+      icon: XCircle, 
+      color: 'text-red-400', 
+      bg: 'bg-red-500/10',
+      percentage: getPercentage(rejectedOrders.length),
+      percentageColor: 'bg-red-500/20 text-red-400'
+    },
+  ];
 
   const stats = [
     { name: 'Total Products', value: products.length, icon: Package, color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -157,7 +228,7 @@ const AdminDashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-white mb-2">Dashboard Overview</h1>
-          <p className="text-slate-500">Welcome back! Here's what's happening with Pixi Mart.</p>
+          <p className="text-slate-500">Welcome back! Here's what's happening with Pixi Marts.</p>
         </div>
         <div className="flex gap-4">
           {products.length === 0 && (
@@ -191,6 +262,44 @@ const AdminDashboard: React.FC = () => {
             <h3 className="text-3xl font-black text-white">{stat.value}</h3>
           </motion.div>
         ))}
+      </div>
+
+      {/* Order Statistics */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-8 bg-indigo-500 rounded-full"></div>
+          <h2 className="text-2xl font-black text-white">Order Statistics</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          {orderStats.map((stat, i) => (
+            <motion.div
+              key={stat.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + (i * 0.1) }}
+              className="glass-dark p-6 rounded-3xl border border-slate-800"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className={`${stat.bg} ${stat.color} p-3 rounded-2xl`}>
+                  <stat.icon className="w-6 h-6" />
+                </div>
+                {stat.percentage && (
+                  <span className={`${stat.percentageColor} text-[10px] font-bold px-2 py-1 rounded-lg`}>
+                    {stat.percentage}
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-400 text-sm font-medium mb-1">{stat.name}</p>
+              <h3 className="text-2xl font-black text-white">{stat.value}</h3>
+              {stat.subValue && (
+                <p className="text-slate-500 text-[10px] mt-1 font-medium uppercase tracking-wider">{stat.subValue}</p>
+              )}
+              {stat.percentage && (
+                <p className="text-slate-500 text-[10px] mt-1 font-medium uppercase tracking-wider">{stat.percentage} of total</p>
+              )}
+            </motion.div>
+          ))}
+        </div>
       </div>
 
       {/* Recent Products */}
